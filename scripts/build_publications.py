@@ -29,7 +29,9 @@ def clean_orcid(value):
 
     check = (12 - total % 11) % 11
     expected = "X" if check == 10 else str(check)
-    return compact if compact[-1] == expected else None
+    if compact[-1] != expected:
+    return None
+return f"{compact[:4]}-{compact[4:8]}-{compact[8:12]}-{compact[12:]}"
 
 
 def get_text(obj):
