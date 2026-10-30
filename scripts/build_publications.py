@@ -15,7 +15,7 @@ API_ROOT = "https://pub.orcid.org/v3.0"
 
 
 def clean_orcid(value):
-    """Return a normalized ORCID iD, or None if it fails format/checksum."""
+    """Return a hyphenated ORCID iD, or None if it fails format/checksum."""
     value = (value or "").strip()
     value = re.sub(r"^https?://orcid\.org/", "", value, flags=re.I)
     compact = re.sub(r"[^0-9Xx]", "", value).upper()
@@ -29,9 +29,11 @@ def clean_orcid(value):
 
     check = (12 - total % 11) % 11
     expected = "X" if check == 10 else str(check)
+
     if compact[-1] != expected:
-    return None
-return f"{compact[:4]}-{compact[4:8]}-{compact[8:12]}-{compact[12:]}"
+        return None
+
+    return f"{compact[:4]}-{compact[4:8]}-{compact[8:12]}-{compact[12:]}"
 
 
 def get_text(obj):
