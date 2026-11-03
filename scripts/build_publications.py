@@ -3,7 +3,6 @@ import html
 import os
 import re
 import sys
-import time
 import traceback
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -17,9 +16,6 @@ ROSTER = Path("data/faculty.csv")
 OUTPUT = Path("docs/faculty.html")
 INDEX = Path("docs/index.html")
 API_ROOT = "https://pub.orcid.org/v3.0"
-
-# Works added to ORCID within this many days get a "New" badge.
-NEW_WINDOW_DAYS = 30
 
 TYPE_LABELS = {
     "journal-article": "Journal article",
@@ -131,20 +127,6 @@ def get_doi(work):
                 return doi.strip()
 
     return ""
-
-
-def is_recent(summary):
-    """True if the work was added to ORCID within NEW_WINDOW_DAYS."""
-    created = summary.get("created-date")
-    if not isinstance(created, dict):
-        return False
-
-    value = created.get("value")
-    if not isinstance(value, (int, float)):
-        return False
-
-    age_seconds = time.time() - value / 1000
-    return 0 <= age_seconds <= NEW_WINDOW_DAYS * 86400
 
 
 def load_roster():
@@ -273,7 +255,6 @@ def fetch_works(person, token):
                 "journal": get_text(summary.get("journal-title")),
                 "doi": get_doi(summary),
                 "type": type_label(summary.get("type")),
-                "new": is_recent(summary),
             }
         )
 
@@ -315,8 +296,6 @@ def publication_card(work, names):
     )
 
     badges = f'<span class="badge">{safe(work["type"])}</span>'
-    if work["new"]:
-        badges += '<span class="badge badge-new">New</span>'
 
     people_html = "".join(
         f'<button type="button" class="person" '
@@ -359,8 +338,6 @@ PAGE_CSS = """
   --chip-on-bg: #153e5c;
   --chip-on-text: #ffffff;
   --badge-bg: #e8eef4;
-  --new-bg: #fdecc8;
-  --new-text: #7a4b00;
   --header-bg: #153e5c;
   --header-text: #ffffff;
   --orcid: #4b7c12;
@@ -379,8 +356,6 @@ PAGE_CSS = """
     --chip-on-bg: #9cc3e4;
     --chip-on-text: #11161c;
     --badge-bg: #26313c;
-    --new-bg: #4a3710;
-    --new-text: #ffd98a;
     --header-bg: #0b2235;
     --header-text: #ffffff;
     --orcid: #a6ce39;
@@ -400,8 +375,6 @@ PAGE_CSS = """
   --chip-on-bg: #9cc3e4;
   --chip-on-text: #11161c;
   --badge-bg: #26313c;
-  --new-bg: #4a3710;
-  --new-text: #ffd98a;
   --header-bg: #0b2235;
   --header-text: #ffffff;
   --orcid: #a6ce39;
@@ -592,7 +565,6 @@ h2 { color: var(--accent); margin: 2rem 0 .75rem; font-size: 1.35rem; }
   border-radius: 4px;
   padding: .05rem .4rem;
 }
-.badge-new { background: var(--new-bg); color: var(--new-text); }
 .authors {
   display: flex;
   flex-wrap: wrap;
@@ -853,11 +825,6 @@ def main():
                     **work,
                     "people": set(),
                 }
-            else:
-                # Only "new" if every co-author's copy was added recently.
-                publications[key]["new"] = (
-                    publications[key]["new"] and work["new"]
-                )
 
             publications[key]["people"].add(person["orcid"])
 
