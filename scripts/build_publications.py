@@ -298,12 +298,17 @@ def publication_card(work, names):
 
     if work["doi"]:
         doi = quote(work["doi"], safe="/():._-")
+        doi_url = f"https://doi.org/{safe(doi)}"
         title_html = (
-            f'<a href="https://doi.org/{safe(doi)}" '
-            f'target="_blank" rel="noopener">{title}</a>'
+            f'<a href="{doi_url}" target="_blank" rel="noopener">{title}</a>'
+        )
+        doi_html = (
+            f'<p class="doi">DOI: <a href="{doi_url}" target="_blank" '
+            f'rel="noopener">{safe(work["doi"])}</a></p>'
         )
     else:
         title_html = title
+        doi_html = ""
 
     details = " · ".join(
         safe(part) for part in (work["journal"], year) if part
@@ -322,7 +327,7 @@ def publication_card(work, names):
     )
 
     search_text = " ".join(
-        [work["title"], work["journal"], year, work["type"]]
+        [work["title"], work["journal"], year, work["type"], work["doi"]]
         + [names[orcid]["display"] for orcid in orcids]
     ).lower()
 
@@ -336,6 +341,7 @@ def publication_card(work, names):
         f"<h3>{title_html}</h3>"
         f'<p class="meta">{details}</p>'
         f'<p class="authors">{people_html}</p>'
+        f"{doi_html}"
         "</article>"
     )
 
@@ -355,10 +361,13 @@ PAGE_CSS = """
   --badge-bg: #e8eef4;
   --new-bg: #fdecc8;
   --new-text: #7a4b00;
+  --header-bg: #153e5c;
+  --header-text: #ffffff;
+  --orcid: #4b7c12;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #11161c;
     --surface: #1a2129;
     --text: #e5e9ee;
@@ -372,10 +381,43 @@ PAGE_CSS = """
     --badge-bg: #26313c;
     --new-bg: #4a3710;
     --new-text: #ffd98a;
+    --header-bg: #0b2235;
+    --header-text: #ffffff;
+    --orcid: #a6ce39;
     --shadow: none;
+    color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #11161c;
+  --surface: #1a2129;
+  --text: #e5e9ee;
+  --muted: #9aa6b4;
+  --border: #2c3640;
+  --accent: #9cc3e4;
+  --link: #8cc4f0;
+  --chip-bg: #242d37;
+  --chip-on-bg: #9cc3e4;
+  --chip-on-text: #11161c;
+  --badge-bg: #26313c;
+  --new-bg: #4a3710;
+  --new-text: #ffd98a;
+  --header-bg: #0b2235;
+  --header-text: #ffffff;
+  --orcid: #a6ce39;
+  --shadow: none;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--bg);
+}
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -385,15 +427,17 @@ body {
 }
 a { color: var(--link); }
 :focus-visible { outline: 3px solid var(--link); outline-offset: 2px; }
-.wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
 
 header.site {
-  background: var(--accent);
-  color: #fff;
-  padding: 2rem 0 1.5rem;
-}
-@media (prefers-color-scheme: dark) {
-  header.site { background: #0b2235; }
+  background: var(--header-bg);
+  color: var(--header-text);
+  padding-block: 2rem 1.5rem;
 }
 header.site h1 { margin: 0 0 .35rem; font-size: 1.9rem; line-height: 1.2; }
 header.site p { margin: .2rem 0; opacity: .9; }
@@ -455,13 +499,12 @@ h2 { color: var(--accent); margin: 2rem 0 .75rem; font-size: 1.35rem; }
   font-size: .75rem;
   font-weight: 700;
   text-decoration: none;
-  color: #4b7c12;
+  color: var(--orcid);
   background: var(--chip-bg);
   border: 1px solid var(--border);
   border-radius: 0 999px 999px 0;
   padding: 0 .65rem;
 }
-@media (prefers-color-scheme: dark) { .orcid { color: #a6ce39; } }
 .orcid:hover { border-color: var(--link); }
 .panel-actions { margin: 0 0 .75rem; }
 
@@ -478,7 +521,7 @@ h2 { color: var(--accent); margin: 2rem 0 .75rem; font-size: 1.35rem; }
 
 .toolbar {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 10;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -568,6 +611,12 @@ h2 { color: var(--accent); margin: 2rem 0 .75rem; font-size: 1.35rem; }
   cursor: pointer;
 }
 .person:hover { border-color: var(--link); }
+.publication .doi {
+  margin-top: .4rem;
+  font-size: .82rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
 
 .empty {
   text-align: center;
@@ -582,8 +631,8 @@ footer.site {
 }
 .to-top {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 20;
   font: inherit;
   font-size: .9rem;
