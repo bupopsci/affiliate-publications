@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: "0 11 * * 1"
   push:
+    branches:
+      - main
     paths:
       - "data/faculty.csv"
       - "scripts/build_publications.py"
